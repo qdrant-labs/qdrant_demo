@@ -9,4 +9,4 @@ services:
       - key: QDRANT_API_KEY
         sync: false
       - key: COLLECTION_NAME
-        sync: false
+        value: startups
