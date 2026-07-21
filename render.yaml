@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: qdrant-startup-search
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: COLLECTION_NAME
+        sync: false

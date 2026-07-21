@@ -112,3 +112,14 @@ This initializes both searchers. A GET endpoint /api/search allows querying with
 
 ## config.py
 This retrieves environment variables for the Qdrant URL, API key, collection name, and embeddings model. It sets the name of the field used for text data as “document”. 
+## Deploy on Render
+
+This repo is a single Docker service (FastAPI backend + built frontend, talking
+to Qdrant Cloud). A `render.yaml` blueprint is included.
+
+1. On Render: **New → Blueprint**, connect this repo. It detects the Dockerfile.
+2. Set env vars: `QDRANT_URL`, `QDRANT_API_KEY` (your Qdrant Cloud), and
+   `COLLECTION_NAME` (the collection to search).
+3. Use an instance with **≥ 2 GB RAM** (the embedding model needs it — the free
+   512 MB tier is too small).
+4. Load the collection first with the repo's `init_collection_*` script.
