@@ -1,12 +1,15 @@
+import { useState } from "react";
+
 function StartupCard({ startup, onFindSimilar }) {
   const { name, city, description, images, link } = startup;
   const hasWebsite = link && link !== "nan" && !link.includes("example.com");
+  const [logoOk, setLogoOk] = useState(Boolean(images));
 
   return (
     <article className="result-card">
       <div className="result-logo">
-        {images ? (
-          <img src={images} alt={name} />
+        {logoOk ? (
+          <img src={images} alt={name} onError={() => setLogoOk(false)} />
         ) : (
           <span>{(name || "?").charAt(0)}</span>
         )}
