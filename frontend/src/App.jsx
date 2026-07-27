@@ -6,6 +6,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import LoadingState from "./components/LoadingState";
 import StartupCard from "./components/StartupCard";
+import HowItWorksModal from "./components/HowItWorksModal";
 
 import { search } from "./lib/api";
 
@@ -18,6 +19,7 @@ function App() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   async function runSearch(q = query, useNeural = neural) {
     const clean = q.trim();
@@ -56,7 +58,11 @@ function App() {
 
   return (
     <div className={`app ${theme}`}>
-      <Header theme={theme} setTheme={setTheme} onOpenHowItWorks={() => {}} />
+      <Header
+        theme={theme}
+        setTheme={setTheme}
+        onOpenHowItWorks={() => setShowHowItWorks(true)}
+      />
 
       <main className="page">
         <section className="search-panel">
@@ -138,6 +144,10 @@ function App() {
       </main>
 
       <Footer theme={theme} />
+
+      {showHowItWorks && (
+        <HowItWorksModal onClose={() => setShowHowItWorks(false)} />
+      )}
     </div>
   );
 }
