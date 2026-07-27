@@ -1,15 +1,19 @@
-// Talks to the original qdrant_demo backend: GET /api/search?q=&neural=.
+// Talks to the qdrant_demo backend: GET /api/search?q=&neural=.
 // neural=true -> semantic vector search; neural=false -> full-text search.
-// The backend serves this frontend, so the call is same-origin.
+//
+// VITE_API_BASE lets the frontend live somewhere other than the backend
+// (e.g. the UI on Vercel, the API on Railway). Empty by default, so when the
+// backend serves this frontend the call stays same-origin.
 //
 // Set VITE_MOCK=1 in dev (no backend) to preview the styling with sample data.
 const USE_MOCK = import.meta.env.VITE_MOCK === "1";
+const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
 
 export async function search(query, neural = true) {
   if (USE_MOCK) return mockSearch(query, neural);
 
   const res = await fetch(
-    `api/search?q=${encodeURIComponent(query)}&neural=${neural}`,
+    `${API_BASE}/api/search?q=${encodeURIComponent(query)}&neural=${neural}`,
   );
   if (!res.ok) throw new Error(`Search failed (${res.status})`);
   const data = await res.json();
