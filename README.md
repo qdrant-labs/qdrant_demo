@@ -84,7 +84,7 @@ python -m qdrant_demo.init_collection_crunchbase
 |Qdrant|Vector database and a search engine with full-text and semantic capabilities.|
 |`all-MiniLM-L6-v2`|The embedding model that turns startup data to vectors.|
 |FastEmbed|Qdrant's package that simplifies this vectorization process.|
-|Frontend in TypeScript|Basic visuals that you see in the deployed application.|
+|Frontend in React (Vite)|The UI you see in the deployed application, styled with the Qdrant design system.|
 
 |Application Components||
 |-|-|
@@ -111,15 +111,37 @@ The TextSearcher class defines text searches. The search method queries the spec
 This initializes both searchers. A GET endpoint /api/search allows querying with a text string and a flag to choose between neural and text search methods. 
 
 ## config.py
-This retrieves environment variables for the Qdrant URL, API key, collection name, and embeddings model. It sets the name of the field used for text data as “document”. 
-## Deploy on Render
+This retrieves environment variables for the Qdrant URL, API key, collection name, and embeddings model. The field used for text (keyword) search defaults to `description` and can be overridden with `TEXT_FIELD_NAME`.
 
-This repo is a single Docker service (FastAPI backend + built frontend, talking
-to Qdrant Cloud). A `render.yaml` blueprint is included.
+## Deploy
 
-1. On Render: **New → Blueprint**, connect this repo. It detects the Dockerfile.
-2. Set env vars: `QDRANT_URL`, `QDRANT_API_KEY` (your Qdrant Cloud), and
-   `COLLECTION_NAME` (the collection to search).
-3. Use an instance with **≥ 2 GB RAM** (the embedding model needs it — the free
-   512 MB tier is too small).
-4. Load the collection first with the repo's `init_collection_*` script.
+The app talks to a **Qdrant Cloud** cluster, so load your collection first with
+`python -m qdrant_demo.init_collection_startups` (or `init_collection_crunchbase`),
+then set these environment variables wherever you deploy:
+
+| Variable | Value |
+|-|-|
+| `QDRANT_URL` | your Qdrant Cloud endpoint (`https://…:6333`) |
+| `QDRANT_API_KEY` | your Qdrant Cloud API key |
+| `COLLECTION_NAME` | the collection to search (e.g. `startups`) |
+
+### Option A — one container (Railway or any Docker host)
+
+The `Dockerfile` builds the React frontend and runs FastAPI serving it, so the
+whole demo is a single service. On Railway: **New → Deploy from GitHub repo**,
+pick this repo, add the variables above. The container binds the platform's
+`$PORT` automatically.
+
+### Option B — frontend on Vercel, API on the container
+
+To embed the demo behind a static link (e.g. on a website), host just the UI on
+Vercel and keep the API on the container from Option A:
+
+1. On Vercel, import this repo with **Root Directory = `frontend`** (Vite is
+   auto-detected).
+2. Add one env var: `VITE_API_BASE` = the container's URL (e.g. the Railway URL).
+   The frontend then calls that API cross-origin; it defaults to same-origin, so
+   Option A keeps working unchanged.
+
+Either way, semantic search embeds the query with fastembed `all-MiniLM-L6-v2`
+and searches the Qdrant Cloud collection.
