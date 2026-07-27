@@ -1,123 +1,75 @@
-
 # Semantic Search Engine
 
-You can clone this repo and create your own search engine in a few steps! 
-</br> [![Demo](https://img.shields.io/badge/Try%20it%20live%20here!-purple?&style=flat-square&logo=react&logoColor=white)](https://demo.qdrant.tech/) 
+A small app that searches a list of startups by meaning.
 
-You can use this small app to search through a list of popular startups.
-<br> - The **neural search** will read the description and look for similar startups.
-</br> - The **keyword search** will look up your exact term in the description. 
+[![Try it live](https://img.shields.io/badge/Try%20it%20live%20here!-purple?&style=flat-square&logo=react&logoColor=white)](https://demo.qdrant.tech/)
+
+- **Neural search** reads each startup's description and finds similar ones.
+- **Keyword search** matches your exact term in the description.
 
 ![Startup Search Demo](demo.gif)
 
-## Prerequisites
-- Python (v.3.11)
-- Docker
+## Run locally
 
-## Setup
+Local runs use a throwaway Qdrant in Docker — no cloud account needed.
 
-### 1. Setup the virtual environment 
-
-```python
-python -m venv .venv             
-source .venv/bin/activate
-```
-
-### 2. Install required dependencies
+**Prerequisites:** Python 3.11, Docker
 
 ```bash
+# 1. Environment
+python -m venv .venv
+source .venv/bin/activate
+
+# 2. Dependencies
 pip install poetry
 poetry install
-```
 
-### 3. Download the dataset
-
-```bash
+# 3. Dataset
 wget https://storage.googleapis.com/generall-shared-data/startups_demo.json -P data/
-```
 
-### 4. Deploy the service
-
-```bash
+# 4. Start Qdrant + the service
 docker-compose -f docker-compose-local.yaml up
-```
 
-### 5. Upload data to the application
-
-```bash
+# 5. Load the data
 python -m qdrant_demo.init_collection_startups
 ```
 
-### 6.  Go to [http://localhost:8000/](http://localhost:8000/) 
+Then open [http://localhost:8000/](http://localhost:8000/).
 
+### Larger dataset (Crunchbase)
 
-## Using a larger dataset with more startups
-
-You can add a larger dataset of companies provided by [Crunchbase](https://www.crunchbase.com/).
-
-For this, you will need to register at [https://www.crunchbase.com/](https://www.crunchbase.com/) and get an API key.
-
-### 1. Download the data 
+To index a bigger set of companies, get a [Crunchbase](https://www.crunchbase.com/) API key, then:
 
 ```bash
 wget 'https://api.crunchbase.com/odm/v4/odm.tar.gz?user_key=<CRUNCHBASE-API-KEY>' -O odm.tar.gz
-```
-
-### 2. Decompress the data and add `organizations.csv` to `./data` folder.
-
-```bash
 tar -xvf odm.tar.gz
 mv odm/organizations.csv ./data
-```
-
-### 3. Now you can index new Crunchbase data into Qdrant
-
-```bash
 python -m qdrant_demo.init_collection_crunchbase
 ```
 
+## What's inside
 
-## What's inside of this app? 
-
-|Software Stack||
+| Software stack | |
 |-|-|
-|Qdrant|Vector database and a search engine with full-text and semantic capabilities.|
-|`all-MiniLM-L6-v2`|The embedding model that turns startup data to vectors.|
-|FastEmbed|Qdrant's package that simplifies this vectorization process.|
-|Frontend in React (Vite)|The UI you see in the deployed application, styled with the Qdrant design system.|
+| Qdrant | Vector database and search engine with full-text and semantic capabilities. |
+| `all-MiniLM-L6-v2` | The embedding model that turns startup data into vectors. |
+| FastEmbed | Qdrant's package that handles the vectorization. |
+| React (Vite) | The frontend, styled with the Qdrant design system. |
 
-|Application Components||
+| Component | |
 |-|-|
-|`init_collection_startups.py`|Uploads document embeddings to a Qdrant collection.|
-|`neural_searcher.py`|Defines the semantic search process via vector search and optional payload filter.|
-|`text_searcher.py`|Defines the keyword search process across startup metadata / payload.|
-|`service.py`|Setup instructions for the entire FastAPI application.|
-|`config.py`|Defines the directories for code, root, data, and static files|
+| `init_collection_startups.py` | Loads startup data into a Qdrant collection (with a text index for keyword search). |
+| `init_collection_crunchbase.py` | Same, for the larger Crunchbase dataset. |
+| `neural_searcher.py` | Semantic search: embeds the query and returns the nearest startups. |
+| `text_searcher.py` | Keyword search: full-text match on the `description` field. |
+| `service.py` | FastAPI app exposing `GET /api/search?q&neural`, also serving the built frontend. |
+| `config.py` | Reads env vars (Qdrant URL/key, collection, embeddings model). Text field defaults to `description`, overridable via `TEXT_FIELD_NAME`. |
 
-## init_collection_startups.py
-This reads a JSON file containing startup data, restructures the data into a unified schema, and recreates a collection in Qdrant with specified vector and quantization configurations.
+## Deploy (Qdrant Cloud)
 
-In this example, we are turning on Scalar Quantization to make sure less memory is used to process data.
-
-A payload index is created for text search on a specified text field. Finally, it uploads the documents and their metadata to the Qdrant collection. 
-
-## neural_searcher.py
-The NeuralSearcher class enables semantic searches. The search method takes a text query and an optional filter, performs a semantic search in the specified collection, and returns the top five results’ metadata. 
-
-## text_searcher.py
-The TextSearcher class defines text searches. The search method queries the specified text field for matches and returns the top results, while the highlight method wraps matching query terms in HTML <b> tags for emphasis. 
-
-## service.py
-This initializes both searchers. A GET endpoint /api/search allows querying with a text string and a flag to choose between neural and text search methods. 
-
-## config.py
-This retrieves environment variables for the Qdrant URL, API key, collection name, and embeddings model. The field used for text (keyword) search defaults to `description` and can be overridden with `TEXT_FIELD_NAME`.
-
-## Deploy
-
-The app talks to a **Qdrant Cloud** cluster, so load your collection first with
-`python -m qdrant_demo.init_collection_startups` (or `init_collection_crunchbase`),
-then set these environment variables wherever you deploy:
+A deployed instance searches a **Qdrant Cloud** collection instead of a local one.
+Load the collection first (the `init_collection_*` scripts above, pointed at your
+cluster), then set these environment variables wherever you deploy:
 
 | Variable | Value |
 |-|-|
@@ -129,19 +81,13 @@ then set these environment variables wherever you deploy:
 
 The `Dockerfile` builds the React frontend and runs FastAPI serving it, so the
 whole demo is a single service. On Railway: **New → Deploy from GitHub repo**,
-pick this repo, add the variables above. The container binds the platform's
-`$PORT` automatically.
+pick this repo, add the variables above. The container binds `$PORT` automatically.
 
 ### Option B — frontend on Vercel, API on the container
 
-To embed the demo behind a static link (e.g. on a website), host just the UI on
-Vercel and keep the API on the container from Option A:
+To embed the demo behind a static link, host the UI on Vercel and keep the API on
+the container from Option A:
 
-1. On Vercel, import this repo with **Root Directory = `frontend`** (Vite is
-   auto-detected).
-2. Add one env var: `VITE_API_BASE` = the container's URL (e.g. the Railway URL).
-   The frontend then calls that API cross-origin; it defaults to same-origin, so
-   Option A keeps working unchanged.
-
-Either way, semantic search embeds the query with fastembed `all-MiniLM-L6-v2`
-and searches the Qdrant Cloud collection.
+1. Import this repo on Vercel with **Root Directory = `frontend`** (Vite is auto-detected).
+2. Add one env var: `VITE_API_BASE` = the container's URL. The frontend then calls
+   that API cross-origin; it defaults to same-origin, so Option A is unaffected.
