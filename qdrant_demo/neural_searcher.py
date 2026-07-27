@@ -10,7 +10,7 @@ class NeuralSearcher:
 
     def __init__(self, collection_name: str):
         self.collection_name = collection_name
-        self.qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, prefer_grpc=True)
+        self.qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
     def search(self, text: str, filter_: dict = None) -> List[dict]:
         start_time = time.time()

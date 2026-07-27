@@ -11,4 +11,4 @@ QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "")
 COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "text-demo")
 EMBEDDINGS_MODEL = os.environ.get("EMBEDDINGS_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
-TEXT_FIELD_NAME = "document"
+TEXT_FIELD_NAME = os.environ.get("TEXT_FIELD_NAME", "description")
