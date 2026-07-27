@@ -1,7 +1,12 @@
 import { useState } from "react";
 
 function StartupCard({ startup, onFindSimilar }) {
-  const { name, city, description, images, link } = startup;
+  const name = startup.name;
+  const city = startup.city;
+  // Support both the raw dataset fields and the backend's renamed payload.
+  const description = startup.description || startup.document || "";
+  const images = startup.images || startup.logo_url || "";
+  const link = startup.link || startup.homepage_url || "";
   const hasWebsite = link && link !== "nan" && !link.includes("example.com");
   const [logoOk, setLogoOk] = useState(Boolean(images));
 
