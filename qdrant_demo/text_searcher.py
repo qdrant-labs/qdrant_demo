@@ -28,8 +28,21 @@ class TextSearcher:
         record["highlight"] = text
         return record
 
+    def _relevance(self, payload, terms) -> int:
+        """Simple relevance score: term hits in the name count more than in the
+        description, so results most about the query rank first."""
+        name = (payload.get("name") or "").lower()
+        text = (payload.get(self.highlight_field) or "").lower()
+        score = 0
+        for term in terms:
+            score += len(re.findall(rf"\b{re.escape(term)}", name)) * 3
+            score += len(re.findall(rf"\b{re.escape(term)}", text))
+        return score
+
     def search(self, query, top=10):
-        hits, _next_page = self.qdrant_client.scroll(
+        # Full-text match is a filter (no relevance score), so over-fetch a pool
+        # of matches and rank them ourselves by term frequency.
+        pool, _next_page = self.qdrant_client.scroll(
             collection_name=self.collection_name,
             scroll_filter=Filter(
                 must=[
@@ -40,6 +53,8 @@ class TextSearcher:
                 ]),
             with_payload=True,
             with_vectors=False,
-            limit=top
+            limit=max(top, 256),
         )
-        return [self.highlight(hit.payload, query) for hit in hits]
+        terms = re.findall(r"\w+", query.lower())
+        ranked = sorted(pool, key=lambda hit: self._relevance(hit.payload, terms), reverse=True)
+        return [self.highlight(hit.payload, query) for hit in ranked[:top]]
