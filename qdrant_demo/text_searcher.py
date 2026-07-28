@@ -28,7 +28,7 @@ class TextSearcher:
         record["highlight"] = text
         return record
 
-    def search(self, query, top=5):
+    def search(self, query, top=10):
         hits, _next_page = self.qdrant_client.scroll(
             collection_name=self.collection_name,
             scroll_filter=Filter(

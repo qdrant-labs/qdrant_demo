@@ -21,7 +21,7 @@ class NeuralSearcher:
                 model=EMBEDDINGS_MODEL,
             ),
             query_filter=models.Filter(**filter_) if filter_ else None,
-            limit=5
+            limit=10
         )
         print(f"Search took {time.time() - start_time} seconds")
         return [hit.payload for hit in hits.points]
