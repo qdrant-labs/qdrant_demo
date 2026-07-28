@@ -5,6 +5,8 @@ function StartupCard({ startup, onFindSimilar }) {
   const city = startup.city;
   // Support both the raw dataset fields and the backend's renamed payload.
   const description = startup.description || startup.document || "";
+  // Keyword search returns a separate `highlight` field with <b> around matches.
+  const displayHtml = highlightHtml(startup.highlight || description);
   const images = startup.images || startup.logo_url || "";
   const link = startup.link || startup.homepage_url || "";
   const hasWebsite = link && link !== "nan" && !link.includes("example.com");
@@ -27,7 +29,7 @@ function StartupCard({ startup, onFindSimilar }) {
 
         <h3>{name}</h3>
 
-        <p dangerouslySetInnerHTML={{ __html: sanitize(description) }} />
+        <p dangerouslySetInnerHTML={{ __html: displayHtml }} />
       </div>
 
       <div className="result-meta">
@@ -49,10 +51,16 @@ function StartupCard({ startup, onFindSimilar }) {
   );
 }
 
-// Minimal tag stripper (payload descriptions may contain markup).
-function sanitize(text = "") {
-  const stripped = String(text).replace(/<[^>]*>/g, "");
-  return stripped.length > 220 ? stripped.slice(0, 200) + "…" : stripped;
+// Escape all HTML, then re-allow only the <b> tags the backend uses to mark
+// keyword matches. Keeps highlighting (bold) while preventing HTML injection.
+function highlightHtml(text = "") {
+  const escaped = String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return escaped
+    .replace(/&lt;b&gt;/g, "<b>")
+    .replace(/&lt;\/b&gt;/g, "</b>");
 }
 
 export default StartupCard;

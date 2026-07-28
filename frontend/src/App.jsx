@@ -52,8 +52,11 @@ function App() {
   }
 
   function findSimilar(description) {
+    // "Find similar" is inherently semantic — switch to neural and query by the
+    // raw description text.
+    setNeural(true);
     setQuery(description.slice(0, 60));
-    runSearch(description, neural);
+    runSearch(description, true);
   }
 
   return (

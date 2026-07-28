@@ -13,7 +13,10 @@ class TextSearcher:
         self.qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
     def highlight(self, record, query) -> dict:
-        text = record[self.highlight_field]
+        # Keep the original text intact; put the <b>-highlighted version in a
+        # separate "highlight" field so the raw text stays usable (e.g. for
+        # "find similar") and the UI can render bold matches for keyword search.
+        text = record.get(self.highlight_field, "")
 
         for word in query.lower().split():
             if len(word) > 4:
@@ -22,7 +25,7 @@ class TextSearcher:
                 pattern = re.compile(fr"(\b{re.escape(word)}\b)", flags=re.IGNORECASE)
             text = re.sub(pattern, r"<b>\1</b>", text)
 
-        record[self.highlight_field] = text
+        record["highlight"] = text
         return record
 
     def search(self, query, top=5):
