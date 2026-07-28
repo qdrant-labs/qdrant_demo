@@ -33,6 +33,9 @@ function StartupCard({ startup, onFindSimilar }) {
       </div>
 
       <div className="result-meta">
+        {typeof startup.score === "number" && (
+          <span className="score">Match {startup.score.toFixed(3)}</span>
+        )}
         {onFindSimilar && (
           <button
             className="similar-button"

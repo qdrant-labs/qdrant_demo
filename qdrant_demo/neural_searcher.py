@@ -24,4 +24,4 @@ class NeuralSearcher:
             limit=10
         )
         print(f"Search took {time.time() - start_time} seconds")
-        return [hit.payload for hit in hits.points]
+        return [{**hit.payload, "score": hit.score} for hit in hits.points]
