@@ -31,6 +31,16 @@ async def read_item(q: str, neural: bool = True):
     }
 
 
+@app.get("/api/stats")
+async def stats():
+    """Live collection size, so the frontend can show off the scale."""
+    try:
+        count = neural_searcher.qdrant_client.count(COLLECTION_NAME).count
+        return {"count": count, "collection": COLLECTION_NAME}
+    except Exception as e:
+        return {"count": None, "error": f"{type(e).__name__}: {str(e)[:120]}"}
+
+
 # Mount the static files directory once the search endpoint is defined
 if os.path.exists(STATIC_DIR):
     app.mount("/", StaticFiles(directory=STATIC_DIR, html=True))

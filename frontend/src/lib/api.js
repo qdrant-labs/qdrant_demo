@@ -20,6 +20,14 @@ export async function search(query, neural = true) {
   return data.result || [];
 }
 
+// Live collection size, for the "N startups indexed" scale badge.
+export async function getStats() {
+  if (USE_MOCK) return { count: 3000001 };
+  const res = await fetch(`${API_BASE}/api/stats`);
+  if (!res.ok) throw new Error(`Stats failed (${res.status})`);
+  return res.json();
+}
+
 /* ------------------------------- dev mock -------------------------------- */
 
 const MOCK = [

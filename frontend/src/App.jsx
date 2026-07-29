@@ -8,7 +8,7 @@ import LoadingState from "./components/LoadingState";
 import StartupCard from "./components/StartupCard";
 import HowItWorksModal from "./components/HowItWorksModal";
 
-import { search } from "./lib/api";
+import { search, getStats } from "./lib/api";
 
 const EXAMPLES = ["machine learning platform", "food delivery", "developer tools", "healthcare"];
 
@@ -20,6 +20,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [count, setCount] = useState(null); // live collection size, for the scale badge
 
   async function runSearch(q = query, useNeural = neural) {
     const clean = q.trim();
@@ -38,6 +39,9 @@ function App() {
 
   useEffect(() => {
     runSearch();
+    getStats()
+      .then((d) => setCount(typeof d.count === "number" ? d.count : null))
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -74,10 +78,17 @@ function App() {
           <h1>Startup Search</h1>
 
           <p>
-            Search thousands of startup profiles by meaning. Toggle between
-            semantic (neural) search and classic keyword search to see the
-            difference.
+            Search {count ? count.toLocaleString() : "millions of"} startup
+            profiles by meaning. Toggle between semantic (neural) search and
+            classic keyword search to see the difference.
           </p>
+
+          {count != null && (
+            <div className="scale-badge" title={`${count.toLocaleString()} points`}>
+              <span className="scale-dot" />
+              {count.toLocaleString()} startups indexed in Qdrant
+            </div>
+          )}
 
           <div className="segmented">
             <button
