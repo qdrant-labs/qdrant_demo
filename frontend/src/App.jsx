@@ -83,28 +83,30 @@ function App() {
             classic keyword search to see the difference.
           </p>
 
-          {count != null && (
-            <div className="scale-badge" title={`${count.toLocaleString()} points`}>
-              <span className="scale-dot" />
-              {count.toLocaleString()} startups indexed in Qdrant
+          <div className="controls-row">
+            <div className="segmented">
+              <button
+                className={neural ? "active" : ""}
+                onClick={() => setMode(true)}
+                type="button"
+              >
+                Semantic
+              </button>
+              <button
+                className={!neural ? "active" : ""}
+                onClick={() => setMode(false)}
+                type="button"
+              >
+                Keyword
+              </button>
             </div>
-          )}
 
-          <div className="segmented">
-            <button
-              className={neural ? "active" : ""}
-              onClick={() => setMode(true)}
-              type="button"
-            >
-              Semantic
-            </button>
-            <button
-              className={!neural ? "active" : ""}
-              onClick={() => setMode(false)}
-              type="button"
-            >
-              Keyword
-            </button>
+            {count != null && (
+              <div className="scale-badge" title={`${count.toLocaleString()} points`}>
+                <span className="scale-dot" />
+                {count.toLocaleString()} startups indexed in Qdrant
+              </div>
+            )}
           </div>
 
           <form className="search-box" onSubmit={onSubmit}>

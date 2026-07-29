@@ -202,12 +202,24 @@ button {
   font-weight: 760;
 }
 
+/* Row holding the Semantic/Keyword toggle (left) and the scale badge (right) */
+.controls-row {
+  margin-top: 22px; /* the toggle's original top spacing, moved to the row */
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.controls-row .segmented {
+  margin-top: 0; /* spacing now lives on the row, so both items center-align */
+}
+
 /* Live scale badge — "N startups indexed in Qdrant" */
 .scale-badge {
+  margin-left: auto; /* push to the right edge of the controls row */
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
   padding: 6px 12px;
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
   border-radius: 999px;
