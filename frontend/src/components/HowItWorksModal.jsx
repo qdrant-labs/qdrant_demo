@@ -51,14 +51,14 @@ function HowItWorksModal({ onClose }) {
               <div className="mode-card">
                 <span>Semantic</span>
                 <p>
-                  Finds companies by meaning — “food delivery” surfaces relevant
+                  Finds companies by meaning. “food delivery” surfaces relevant
                   startups even when they don’t use those exact words.
                 </p>
               </div>
               <div className="mode-card">
                 <span>Keyword</span>
                 <p>
-                  Classic full-text match — returns companies whose descriptions
+                  Classic full-text match. Returns companies whose descriptions
                   contain your exact terms.
                 </p>
               </div>
