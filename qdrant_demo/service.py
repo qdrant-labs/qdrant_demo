@@ -1,6 +1,6 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
 from qdrant_demo.config import COLLECTION_NAME, STATIC_DIR, RESULT_LIMIT
@@ -28,10 +28,13 @@ async def read_item(q: str, mode: str = "hybrid"):
     """mode = semantic (dense) | keyword (full-text) | hybrid (dense + keyword)."""
     if not q.strip():
         return {"result": [], "stats": {"mode": mode}}
-    if mode == "keyword":
-        return {"result": text_searcher.search(query=q, top=RESULT_LIMIT), "stats": {"mode": "keyword"}}
-    out = neural_searcher.search(text=q, hybrid=(mode == "hybrid"))
-    return {"result": out["results"], "stats": out["stats"]}
+    try:
+        if mode == "keyword":
+            return {"result": text_searcher.search(query=q, top=RESULT_LIMIT), "stats": {"mode": "keyword"}}
+        out = neural_searcher.search(text=q, hybrid=(mode == "hybrid"))
+        return {"result": out["results"], "stats": out["stats"]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)[:300]}")
 
 
 @app.get("/api/stats")
