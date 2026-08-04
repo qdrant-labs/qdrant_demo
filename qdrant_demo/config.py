@@ -19,7 +19,7 @@ DENSE_VECTOR_NAME = os.environ.get("DENSE_VECTOR_NAME", "dense")
 SPARSE_VECTOR_NAME = os.environ.get("SPARSE_VECTOR_NAME", "sparse")
 
 # Embed the query with Qdrant Cloud server-side inference instead of downloading
-# the model locally.
-CLOUD_INFERENCE = os.environ.get("CLOUD_INFERENCE", "0") == "1"
+# the model locally. Parse leniently: some hosts keep the surrounding quotes.
+CLOUD_INFERENCE = os.environ.get("CLOUD_INFERENCE", "0").strip().strip('"').strip("'").lower() in ("1", "true", "yes")
 RESULT_LIMIT = int(os.environ.get("RESULT_LIMIT", "20"))
 HYBRID_PREFETCH = int(os.environ.get("HYBRID_PREFETCH", "40"))

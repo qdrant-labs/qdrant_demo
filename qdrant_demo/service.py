@@ -3,7 +3,9 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
-from qdrant_demo.config import COLLECTION_NAME, STATIC_DIR, RESULT_LIMIT
+from qdrant_demo.config import (
+    COLLECTION_NAME, STATIC_DIR, RESULT_LIMIT, CLOUD_INFERENCE, EMBEDDINGS_MODEL,
+)
 from qdrant_demo.neural_searcher import NeuralSearcher
 from qdrant_demo.text_searcher import TextSearcher
 
@@ -42,7 +44,10 @@ async def stats():
     """Live collection size, so the frontend can show off the scale."""
     try:
         count = neural_searcher.qdrant_client.count(COLLECTION_NAME).count
-        return {"count": count, "collection": COLLECTION_NAME}
+        return {
+            "count": count, "collection": COLLECTION_NAME,
+            "cloud_inference": CLOUD_INFERENCE, "model": EMBEDDINGS_MODEL,
+        }
     except Exception as e:
         return {"count": None, "error": f"{type(e).__name__}: {str(e)[:120]}"}
 
