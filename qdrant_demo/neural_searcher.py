@@ -17,8 +17,12 @@ class NeuralSearcher:
 
     def __init__(self, collection_name: str):
         self.collection_name = collection_name
+        # Generous timeout: the first Cloud-inference call after idle has to load
+        # the model server-side, which can take longer than the default timeout.
+        timeout = int(os.environ.get("QDRANT_TIMEOUT", "60"))
         self.qdrant_client = QdrantClient(
-            url=QDRANT_URL, api_key=QDRANT_API_KEY, cloud_inference=CLOUD_INFERENCE
+            url=QDRANT_URL, api_key=QDRANT_API_KEY,
+            cloud_inference=CLOUD_INFERENCE, timeout=timeout,
         )
 
     def _dense(self, text: str):
