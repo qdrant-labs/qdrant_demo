@@ -1,5 +1,5 @@
-// Talks to the qdrant_demo backend: GET /api/search?q=&neural=.
-// neural=true -> semantic vector search; neural=false -> full-text search.
+// Talks to the qdrant_demo backend: GET /api/search?q=&mode=.
+// mode = semantic (dense vector) | keyword (full-text) | hybrid (both, fused).
 //
 // VITE_API_BASE lets the frontend live somewhere other than the backend
 // (e.g. the UI on Vercel, the API on Railway). Empty by default, so when the
@@ -9,15 +9,15 @@
 const USE_MOCK = import.meta.env.VITE_MOCK === "1";
 const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
 
-export async function search(query, neural = true) {
-  if (USE_MOCK) return mockSearch(query, neural);
+export async function search(query, mode = "hybrid") {
+  if (USE_MOCK) return { results: mockSearch(query), stats: { mode } };
 
   const res = await fetch(
-    `${API_BASE}/api/search?q=${encodeURIComponent(query)}&neural=${neural}`,
+    `${API_BASE}/api/search?q=${encodeURIComponent(query)}&mode=${mode}`,
   );
   if (!res.ok) throw new Error(`Search failed (${res.status})`);
   const data = await res.json();
-  return data.result || [];
+  return { results: data.result || [], stats: data.stats || null };
 }
 
 // Live collection size, for the "N startups indexed" scale badge.
@@ -38,7 +38,6 @@ const MOCK = [
   { name: "Semantify", city: "Amsterdam", description: "Neural search API that lets product teams add meaning-based search in a few lines of code.", images: "", link: "https://example.com" },
 ];
 
-function mockSearch(query, neural) {
-  const tag = neural ? " " : " ";
-  return Promise.resolve(MOCK.map((m) => ({ ...m, description: m.description + tag })));
+function mockSearch() {
+  return MOCK.map((m) => ({ ...m }));
 }

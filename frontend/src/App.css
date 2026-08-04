@@ -965,6 +965,24 @@ button {
   letter-spacing: 0;
 }
 
+/* Per-search stat pills: which models ran and how long they took */
+.search-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.stat-pill {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .result-metrics {
   display: flex;
   align-items: center;

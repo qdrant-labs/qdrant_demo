@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from qdrant_demo.config import COLLECTION_NAME, STATIC_DIR
+from qdrant_demo.config import COLLECTION_NAME, STATIC_DIR, RESULT_LIMIT
 from qdrant_demo.neural_searcher import NeuralSearcher
 from qdrant_demo.text_searcher import TextSearcher
 
@@ -24,11 +24,14 @@ text_searcher = TextSearcher(collection_name=COLLECTION_NAME)
 
 
 @app.get("/api/search")
-async def read_item(q: str, neural: bool = True):
-    return {
-        "result": neural_searcher.search(text=q)
-        if neural else text_searcher.search(query=q)
-    }
+async def read_item(q: str, mode: str = "hybrid"):
+    """mode = semantic (dense) | keyword (full-text) | hybrid (dense + keyword)."""
+    if not q.strip():
+        return {"result": [], "stats": {"mode": mode}}
+    if mode == "keyword":
+        return {"result": text_searcher.search(query=q, top=RESULT_LIMIT), "stats": {"mode": "keyword"}}
+    out = neural_searcher.search(text=q, hybrid=(mode == "hybrid"))
+    return {"result": out["results"], "stats": out["stats"]}
 
 
 @app.get("/api/stats")

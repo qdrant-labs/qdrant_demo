@@ -11,27 +11,42 @@ import HowItWorksModal from "./components/HowItWorksModal";
 import { search, getStats } from "./lib/api";
 
 const EXAMPLES = ["machine learning platform", "food delivery", "developer tools", "healthcare"];
+const MODES = [
+  { id: "semantic", label: "Semantic" },
+  { id: "keyword", label: "Keyword" },
+  { id: "hybrid", label: "Hybrid" },
+];
+
+// Drop the org prefix so "mixedbread-ai/mxbai-embed-large-v1" reads as "mxbai-embed-large-v1".
+const shortModel = (m) => (m ? m.split("/").pop() : m);
 
 function App() {
   const [theme, setTheme] = useState("light");
   const [query, setQuery] = useState("machine learning platform");
-  const [neural, setNeural] = useState(true);
+  const [mode, setMode] = useState("hybrid");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const [count, setCount] = useState(null); // live collection size, for the scale badge
+  const [stats, setStats] = useState(null); // per-search stats: mode + model + latency
+  const [error, setError] = useState(false); // the last search failed to reach the backend
 
-  async function runSearch(q = query, useNeural = neural) {
+  async function runSearch(q = query, m = mode) {
     const clean = q.trim();
     if (!clean) return;
     setLoading(true);
     setHasSearched(true);
+    setError(false);
     try {
-      setResults(await search(clean, useNeural));
+      const { results, stats } = await search(clean, m);
+      setResults(results);
+      setStats(stats);
     } catch (err) {
       console.error(err);
       setResults([]);
+      setStats(null);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -47,20 +62,20 @@ function App() {
 
   function onSubmit(event) {
     event.preventDefault();
-    runSearch(query, neural);
+    runSearch(query, mode);
   }
 
-  function setMode(useNeural) {
-    setNeural(useNeural);
-    runSearch(query, useNeural);
+  function chooseMode(m) {
+    setMode(m);
+    runSearch(query, m);
   }
 
   function findSimilar(description) {
-    // "Find similar" is inherently semantic — switch to neural and query by the
-    // raw description text.
-    setNeural(true);
+    // "Find similar" is inherently semantic, so switch to that mode and query by
+    // the raw description text.
+    setMode("semantic");
     setQuery(description.slice(0, 60));
-    runSearch(description, true);
+    runSearch(description, "semantic");
   }
 
   return (
@@ -79,26 +94,22 @@ function App() {
 
           <p>
             Search {count ? count.toLocaleString() : "millions of"} startup
-            profiles by meaning. Toggle between semantic (neural) search and
-            classic keyword search to see the difference.
+            profiles. Switch between semantic, keyword, and hybrid search to see
+            how each one ranks.
           </p>
 
           <div className="controls-row">
             <div className="segmented">
-              <button
-                className={neural ? "active" : ""}
-                onClick={() => setMode(true)}
-                type="button"
-              >
-                Semantic
-              </button>
-              <button
-                className={!neural ? "active" : ""}
-                onClick={() => setMode(false)}
-                type="button"
-              >
-                Keyword
-              </button>
+              {MODES.map((m) => (
+                <button
+                  key={m.id}
+                  className={mode === m.id ? "active" : ""}
+                  onClick={() => chooseMode(m.id)}
+                  type="button"
+                >
+                  {m.label}
+                </button>
+              ))}
             </div>
 
             {count != null && (
@@ -123,7 +134,7 @@ function App() {
 
           <div className="chips">
             {EXAMPLES.map((ex) => (
-              <button key={ex} type="button" onClick={() => { setQuery(ex); runSearch(ex, neural); }}>
+              <button key={ex} type="button" onClick={() => { setQuery(ex); runSearch(ex, mode); }}>
                 {ex}
               </button>
             ))}
@@ -137,13 +148,33 @@ function App() {
             <div className="results-header">
               <div>
                 <span>Results</span>
-                <p>{results.length} startups · {neural ? "semantic" : "keyword"} search</p>
+                <p>{results.length} startups · {mode} search</p>
               </div>
             </div>
+
+            {stats && (
+              <div className="search-stats">
+                <span className="stat-pill">mode: {stats.mode || mode}</span>
+                {stats.embedding_model && (
+                  <span className="stat-pill">model: {shortModel(stats.embedding_model)}</span>
+                )}
+                {typeof stats.latency_ms === "number" && (
+                  <span className="stat-pill">{stats.latency_ms}ms</span>
+                )}
+              </div>
+            )}
             <div className="results">
               {results.map((s, i) => (
                 <StartupCard key={`${s.name}-${i}`} startup={s} onFindSimilar={findSimilar} />
               ))}
+            </div>
+          </section>
+        ) : error ? (
+          <section className="empty-state">
+            <div className="empty-state-header">
+              <span>Search failed</span>
+              <h3>Couldn't reach the search service</h3>
+              <p>Please try again in a moment.</p>
             </div>
           </section>
         ) : (
