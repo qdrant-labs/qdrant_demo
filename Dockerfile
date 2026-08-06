@@ -38,9 +38,6 @@ COPY ./poetry.lock /app
 COPY --from=build-step /app/dist /app/static
 
 RUN poetry install --no-interaction --no-ansi --no-root --without dev
-# Bump the client past the lock so Cloud inference (mxbai) and the hybrid query
-# API work. The query is embedded server-side, so no local model download needed.
-RUN pip install -U "qdrant-client==1.18.0"
 
 # Finally copy the application source code and install root
 COPY qdrant_demo /app/qdrant_demo

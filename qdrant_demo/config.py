@@ -18,8 +18,9 @@ TEXT_FIELD_NAME = os.environ.get("TEXT_FIELD_NAME", "description")
 DENSE_VECTOR_NAME = os.environ.get("DENSE_VECTOR_NAME", "dense")
 SPARSE_VECTOR_NAME = os.environ.get("SPARSE_VECTOR_NAME", "sparse")
 
-# Embed the query with Qdrant Cloud server-side inference instead of downloading
-# the model locally. Parse leniently: some hosts keep the surrounding quotes.
-CLOUD_INFERENCE = os.environ.get("CLOUD_INFERENCE", "0").strip().strip('"').strip("'").lower() in ("1", "true", "yes")
+# Embed the query with Qdrant Cloud server-side inference. Defaults ON: the query
+# model is a 1024-d mxbai, too heavy to embed per-request on a small CPU box.
+# Parse leniently since some hosts keep the surrounding quotes on the value.
+CLOUD_INFERENCE = os.environ.get("CLOUD_INFERENCE", "1").strip().strip('"').strip("'").lower() in ("1", "true", "yes")
 RESULT_LIMIT = int(os.environ.get("RESULT_LIMIT", "20"))
 HYBRID_PREFETCH = int(os.environ.get("HYBRID_PREFETCH", "40"))

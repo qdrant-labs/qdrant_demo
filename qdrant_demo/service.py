@@ -1,4 +1,5 @@
 import os
+import logging
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -11,6 +12,8 @@ from qdrant_demo.neural_searcher import NeuralSearcher
 from qdrant_demo.text_searcher import TextSearcher
 
 from fastapi.middleware.cors import CORSMiddleware
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -26,24 +29,42 @@ neural_searcher = NeuralSearcher(collection_name=COLLECTION_NAME)
 text_searcher = TextSearcher(collection_name=COLLECTION_NAME)
 
 
+def _present(items):
+    """Map stored payload keys to the schema the frontend reads, without renaming
+    anything in the collection. Keeps unknown keys too."""
+    out = []
+    for it in items:
+        r = dict(it)
+        if "document" not in r and "description" in r:
+            r["document"] = r.get("highlight", r["description"])
+        if "logo_url" not in r and "images" in r:
+            r["logo_url"] = r["images"]
+        if "homepage_url" not in r and "link" in r:
+            r["homepage_url"] = r["link"]
+        out.append(r)
+    return out
+
+
 @app.get("/api/search")
 async def read_item(q: str, mode: Optional[str] = None, neural: Optional[bool] = None):
     """mode = semantic (dense) | keyword (full-text) | hybrid (dense + keyword).
 
-    Back-compat: the older frontend passes `neural` (bool). Map it so that
-    neural=false is keyword and neural=true is hybrid (dense + keyword), which is
-    the stronger default. Explicit `mode` always wins."""
+    Back-compat with the older frontend, which passes `neural` (bool):
+    neural=true -> semantic (its original meaning), neural=false -> keyword.
+    When neither is given, default to hybrid. Explicit `mode` always wins."""
     if mode is None:
-        mode = "keyword" if neural is False else "hybrid"
+        mode = "semantic" if neural is True else "keyword" if neural is False else "hybrid"
     if not q.strip():
         return {"result": [], "stats": {"mode": mode}}
     try:
         if mode == "keyword":
-            return {"result": text_searcher.search(query=q, top=RESULT_LIMIT), "stats": {"mode": "keyword"}}
+            return {"result": _present(text_searcher.search(query=q, top=RESULT_LIMIT)),
+                    "stats": {"mode": "keyword"}}
         out = neural_searcher.search(text=q, hybrid=(mode == "hybrid"))
-        return {"result": out["results"], "stats": out["stats"]}
+        return {"result": _present(out["results"]), "stats": out["stats"]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)[:300]}")
+        logger.exception("search failed for q=%r mode=%s", q, mode)
+        raise HTTPException(status_code=502, detail="Search is temporarily unavailable.")
 
 
 @app.get("/api/stats")
@@ -55,8 +76,9 @@ async def stats():
             "count": count, "collection": COLLECTION_NAME,
             "cloud_inference": CLOUD_INFERENCE, "model": EMBEDDINGS_MODEL,
         }
-    except Exception as e:
-        return {"count": None, "error": f"{type(e).__name__}: {str(e)[:120]}"}
+    except Exception:
+        logger.exception("stats failed")
+        raise HTTPException(status_code=502, detail="Stats are temporarily unavailable.")
 
 
 # Mount the static files directory once the search endpoint is defined
