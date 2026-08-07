@@ -1,24 +1,32 @@
 """Build the startups collection the search path expects: a named `dense` vector
-(mxbai) plus a `sparse` keyword vector with IDF, and a text index for keyword
-search. Documents are embedded with no prefix (mxbai is asymmetric; the query
-prefix is added at search time), so the same text drives dense, sparse, and
-keyword. Run:  python -m qdrant_demo.init_collection_startups
+(mxbai) plus a `sparse` bm25 keyword vector with IDF, and a text index for keyword
+search. Payload fields are renamed once here to the schema the frontend reads
+(`document`, `logo_url`, `homepage_url`). Both vectors are embedded by Qdrant Cloud
+inference, so the query and document sides use the identical models by construction.
+Documents get no mxbai prefix (the query prefix is added at search time).
+Run:  python -m qdrant_demo.init_collection_startups
 """
 import json
 import os
 from typing import Iterable
 
 from qdrant_client import QdrantClient, models
-from fastembed import TextEmbedding
 from tqdm import tqdm
 
 from qdrant_demo.config import (
     DATA_DIR, QDRANT_URL, QDRANT_API_KEY, COLLECTION_NAME, TEXT_FIELD_NAME,
-    EMBEDDINGS_MODEL, DENSE_VECTOR_NAME, SPARSE_VECTOR_NAME,
+    EMBEDDINGS_MODEL, SPARSE_EMBEDDINGS_MODEL, DENSE_VECTOR_NAME, SPARSE_VECTOR_NAME,
 )
-from qdrant_demo.sparse import to_sparse
 
 DENSE_DIM = 1024  # mxbai-embed-large-v1
+
+
+def _prepare(obj: dict) -> dict:
+    # Rename to the unified schema the frontend and search path read.
+    obj["logo_url"] = obj.pop("images", None)
+    obj["homepage_url"] = obj.pop("link", None)
+    obj[TEXT_FIELD_NAME] = obj.pop("description", "")
+    return obj
 
 
 def _records() -> Iterable[dict]:
@@ -27,17 +35,16 @@ def _records() -> Iterable[dict]:
         for line in fd:
             line = line.strip()
             if line:
-                yield json.loads(line)
+                yield _prepare(json.loads(line))
 
 
 def _doc_text(obj: dict) -> str:
-    # Same text the searcher will match against: name + description.
-    return f"{obj.get('name', '')}. {obj.get(TEXT_FIELD_NAME) or obj.get('description', '')}".strip()
+    # Same text the searcher matches against: name + the document body.
+    return f"{obj.get('name', '')}. {obj.get(TEXT_FIELD_NAME, '')}".strip()
 
 
 def build():
-    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-    embedder = TextEmbedding(EMBEDDINGS_MODEL)  # local dense embedding for ingest
+    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, cloud_inference=True)
 
     if client.collection_exists(COLLECTION_NAME):
         print(f"{COLLECTION_NAME} exists, recreating.")
@@ -51,7 +58,7 @@ def build():
             )
         },
         sparse_vectors_config={
-            # IDF is applied at query time; sparse values carry term frequency only.
+            # bm25 values carry term frequency; IDF is applied at query time.
             SPARSE_VECTOR_NAME: models.SparseVectorParams(modifier=models.Modifier.IDF)
         },
         quantization_config=models.ScalarQuantization(
@@ -71,15 +78,13 @@ def build():
     def points() -> Iterable[models.PointStruct]:
         for idx, obj in enumerate(_records()):
             text = _doc_text(obj)
-            dense = next(iter(embedder.embed([text]))).tolist()
-            s_idx, s_val = to_sparse(text)
             yield models.PointStruct(
                 id=idx,
                 vector={
-                    DENSE_VECTOR_NAME: dense,
-                    SPARSE_VECTOR_NAME: models.SparseVector(indices=s_idx, values=s_val),
+                    DENSE_VECTOR_NAME: models.Document(text=text, model=EMBEDDINGS_MODEL),
+                    SPARSE_VECTOR_NAME: models.Document(text=text, model=SPARSE_EMBEDDINGS_MODEL),
                 },
-                payload=obj,  # original keys; the API maps them to the frontend schema
+                payload=obj,
             )
 
     client.upload_points(COLLECTION_NAME, points=tqdm(points()), batch_size=64)

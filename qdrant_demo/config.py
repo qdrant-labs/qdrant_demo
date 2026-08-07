@@ -10,8 +10,11 @@ QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "")
 
 COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "startups_hybrid")
 EMBEDDINGS_MODEL = os.environ.get("EMBEDDINGS_MODEL", "mixedbread-ai/mxbai-embed-large-v1")
+# Sparse keyword model. Qdrant/bm25 handles tokenization, stemming, and stopwords;
+# IDF is applied server-side via the collection's sparse modifier.
+SPARSE_EMBEDDINGS_MODEL = os.environ.get("SPARSE_EMBEDDINGS_MODEL", "Qdrant/bm25")
 
-TEXT_FIELD_NAME = os.environ.get("TEXT_FIELD_NAME", "description")
+TEXT_FIELD_NAME = os.environ.get("TEXT_FIELD_NAME", "document")
 
 # Named vectors on the hybrid collection. Leave DENSE_VECTOR_NAME empty for a
 # collection with a single unnamed vector.

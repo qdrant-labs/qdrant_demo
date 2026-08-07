@@ -29,22 +29,6 @@ neural_searcher = NeuralSearcher(collection_name=COLLECTION_NAME)
 text_searcher = TextSearcher(collection_name=COLLECTION_NAME)
 
 
-def _present(items):
-    """Map stored payload keys to the schema the frontend reads, without renaming
-    anything in the collection. Keeps unknown keys too."""
-    out = []
-    for it in items:
-        r = dict(it)
-        if "document" not in r and "description" in r:
-            r["document"] = r.get("highlight", r["description"])
-        if "logo_url" not in r and "images" in r:
-            r["logo_url"] = r["images"]
-        if "homepage_url" not in r and "link" in r:
-            r["homepage_url"] = r["link"]
-        out.append(r)
-    return out
-
-
 @app.get("/api/search")
 async def read_item(q: str, mode: Optional[str] = None, neural: Optional[bool] = None):
     """mode = semantic (dense) | keyword (full-text) | hybrid (dense + keyword).
@@ -58,10 +42,10 @@ async def read_item(q: str, mode: Optional[str] = None, neural: Optional[bool] =
         return {"result": [], "stats": {"mode": mode}}
     try:
         if mode == "keyword":
-            return {"result": _present(text_searcher.search(query=q, top=RESULT_LIMIT)),
+            return {"result": text_searcher.search(query=q, top=RESULT_LIMIT),
                     "stats": {"mode": "keyword"}}
         out = neural_searcher.search(text=q, hybrid=(mode == "hybrid"))
-        return {"result": _present(out["results"]), "stats": out["stats"]}
+        return {"result": out["results"], "stats": out["stats"]}
     except Exception as e:
         logger.exception("search failed for q=%r mode=%s", q, mode)
         raise HTTPException(status_code=502, detail="Search is temporarily unavailable.")
