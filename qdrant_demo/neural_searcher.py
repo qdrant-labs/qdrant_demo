@@ -16,9 +16,10 @@ class NeuralSearcher:
 
     def __init__(self, collection_name: str):
         self.collection_name = collection_name
-        # The first Cloud-inference call after idle loads the model server-side,
-        # which can take longer than the default client timeout.
-        timeout = int(os.environ.get("QDRANT_TIMEOUT", "60"))
+        # Fail loudly instead of hanging: measured novel-query latency is well
+        # under a second, so 15s is a generous ceiling that still surfaces a real
+        # problem quickly rather than masking it for a minute.
+        timeout = int(os.environ.get("QDRANT_TIMEOUT", "15"))
         self.qdrant_client = QdrantClient(
             url=QDRANT_URL, api_key=QDRANT_API_KEY,
             cloud_inference=CLOUD_INFERENCE, timeout=timeout,
