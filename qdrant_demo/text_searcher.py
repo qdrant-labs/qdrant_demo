@@ -1,16 +1,27 @@
 import os
 import re
 
-from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchText
-from qdrant_demo.config import QDRANT_URL, QDRANT_API_KEY, TEXT_FIELD_NAME
+from qdrant_client import QdrantClient, models
+from qdrant_demo.config import (
+    QDRANT_URL, QDRANT_API_KEY, TEXT_FIELD_NAME, SPARSE_EMBEDDINGS_MODEL,
+    SPARSE_VECTOR_NAME, RESULT_LIMIT, CLOUD_INFERENCE,
+)
 
 
 class TextSearcher:
+    """Keyword search over the bm25 sparse vector, ranked with IDF applied
+    server-side. The previous version filtered on the payload text index, which
+    only answers whether a document contains every term, then re-ranked that
+    unordered subset by term frequency in Python."""
+
     def __init__(self, collection_name: str):
         self.highlight_field = TEXT_FIELD_NAME
         self.collection_name = collection_name
-        self.qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        timeout = int(os.environ.get("QDRANT_TIMEOUT", "60"))
+        self.qdrant_client = QdrantClient(
+            url=QDRANT_URL, api_key=QDRANT_API_KEY, prefer_grpc=True,
+            cloud_inference=CLOUD_INFERENCE, timeout=timeout,
+        )
 
     def highlight(self, record, query) -> dict:
         # Keep the original text intact; put the <b>-highlighted version in a
@@ -28,33 +39,13 @@ class TextSearcher:
         record["highlight"] = text
         return record
 
-    def _relevance(self, payload, terms) -> int:
-        """Simple relevance score: term hits in the name count more than in the
-        description, so results most about the query rank first."""
-        name = (payload.get("name") or "").lower()
-        text = (payload.get(self.highlight_field) or "").lower()
-        score = 0
-        for term in terms:
-            score += len(re.findall(rf"\b{re.escape(term)}", name)) * 3
-            score += len(re.findall(rf"\b{re.escape(term)}", text))
-        return score
-
-    def search(self, query, top=10):
-        # Full-text match is a filter (no relevance score), so over-fetch a pool
-        # of matches and rank them ourselves by term frequency.
-        pool, _next_page = self.qdrant_client.scroll(
+    def search(self, query, top=RESULT_LIMIT):
+        hits = self.qdrant_client.query_points(
             collection_name=self.collection_name,
-            scroll_filter=Filter(
-                must=[
-                    FieldCondition(
-                        key=TEXT_FIELD_NAME,
-                        match=MatchText(text=query),
-                    )
-                ]),
-            with_payload=True,
-            with_vectors=False,
-            limit=max(top, 256),
-        )
-        terms = re.findall(r"\w+", query.lower())
-        ranked = sorted(pool, key=lambda hit: self._relevance(hit.payload, terms), reverse=True)
-        return [self.highlight(hit.payload, query) for hit in ranked[:top]]
+            query=models.Document(text=query, model=SPARSE_EMBEDDINGS_MODEL),
+            using=SPARSE_VECTOR_NAME,
+            limit=top,
+        ).points
+        # bm25 scores are unbounded, unlike the cosine and RRF scores the other
+        # modes return, so /api/search labels the scale as "bm25".
+        return [{**self.highlight(hit.payload, query), "score": hit.score} for hit in hits]
