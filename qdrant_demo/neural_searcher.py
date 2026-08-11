@@ -1,5 +1,4 @@
 import os
-import time
 
 from qdrant_client import QdrantClient, models
 
@@ -46,7 +45,6 @@ class NeuralSearcher:
         ).points
 
     def search(self, text: str, hybrid: bool = False) -> dict:
-        t0 = time.perf_counter()
         mode = "hybrid" if hybrid else "semantic"
 
         if hybrid:
@@ -62,14 +60,12 @@ class NeuralSearcher:
         else:
             hits = self._dense_only(text)
 
-        latency_ms = round((time.perf_counter() - t0) * 1000)
         results = [{**hit.payload, "score": hit.score} for hit in hits]
         stats = {
             "mode": mode,
             "embedding_model": EMBEDDINGS_MODEL,
             # RRF fusion scores (~1/60) are not on the same scale as cosine (~0..1).
             "score_type": "rrf" if mode == "hybrid" else "cosine",
-            "latency_ms": latency_ms,
             "results": len(results),
         }
         return {"results": results, "stats": stats}
