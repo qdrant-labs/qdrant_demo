@@ -55,6 +55,15 @@ RUN pip install -U "qdrant-client==1.18.0" \
 # Finally copy the application source code and install root
 COPY qdrant_demo /app/qdrant_demo
 
+# Last layer on purpose. The same repair earlier in the file kept getting
+# skipped, and a cached layer there leaves the broken install in place. Running
+# it after the source copy means it cannot be reused from an older build, and
+# the import check fails the build rather than letting it crash on boot.
+RUN pip uninstall -y charset-normalizer \
+    && CHARSET_NORMALIZER_USE_MYPYC=0 pip install --no-cache-dir --no-binary charset-normalizer "charset-normalizer==3.4.1" \
+    && test -z "$(find /usr/local/lib/python3.11/site-packages/charset_normalizer -name '*.so')" \
+    && python -c "import qdrant_demo.service; print('app imports clean')"
+
 EXPOSE 8000
 
 CMD uvicorn qdrant_demo.service:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-1}
