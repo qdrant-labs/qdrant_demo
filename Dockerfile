@@ -40,7 +40,15 @@ COPY --from=build-step /app/dist /app/static
 RUN poetry install --no-interaction --no-ansi --no-root --without dev
 # Bump the client past the lock so Cloud inference (mxbai) and the hybrid query
 # API work. The query is embedded server-side, so no local model download here.
-RUN pip install -U "qdrant-client==1.18.0"
+#
+# charset-normalizer is reinstalled at the version the lock pins because `-U`
+# upgrades transitive dependencies over the ones poetry just installed, and that
+# package ships a compiled extension alongside its Python module. Mixing
+# versions leaves them disagreeing and the app dies on import with
+# `module 'charset_normalizer.md' has no attribute 'CharInfo'`. Nothing here is
+# pinned otherwise, so which versions land depends on the day the image builds.
+RUN pip install -U "qdrant-client==1.18.0" \
+    && pip install --force-reinstall --no-cache-dir "charset-normalizer==3.4.1"
 
 # Finally copy the application source code and install root
 COPY qdrant_demo /app/qdrant_demo
