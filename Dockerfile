@@ -19,6 +19,11 @@ RUN npm run build
 
 FROM python:3.11-slim-bookworm
 
+# Bump this to force every layer below to rebuild. The registry kept serving a
+# stale runtime while builds cached clean, so this plus the startup marker in
+# CMD makes it provable which image is actually running.
+ENV IMAGE_MARKER=fastembed-free-v5
+
 RUN apt-get update -y && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
@@ -71,5 +76,5 @@ RUN pip uninstall -y fastembed \
 
 EXPOSE 8000
 
-CMD uvicorn qdrant_demo.service:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-1}
+CMD echo "STARTING $IMAGE_MARKER" && uvicorn qdrant_demo.service:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WORKERS:-1}
 
