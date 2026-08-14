@@ -66,6 +66,7 @@ COPY qdrant_demo /app/qdrant_demo
 # Last layer on purpose, so a cached earlier layer cannot skip it, and the
 # import check fails the build instead of letting it crash on boot.
 RUN pip uninstall -y fastembed \
+    && pip install --no-cache-dir "chardet>=5.2.0" \
     && python -c "import qdrant_demo.service; print('app imports clean')"
 
 EXPOSE 8000
