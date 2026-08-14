@@ -18,8 +18,15 @@ class TextSearcher:
         self.highlight_field = TEXT_FIELD_NAME
         self.collection_name = collection_name
         timeout = int(os.environ.get("QDRANT_TIMEOUT", "60"))
+        # No prefer_grpc here. This was the only client asking for gRPC, and it
+        # was the only search mode that failed: keyword returned 502 on about a
+        # third of requests while semantic and hybrid never did. Hybrid runs the
+        # same bm25 inference against the same collection over HTTP without
+        # trouble, so the transport was the difference, not the query. The
+        # failures came back in under a third of a second, which is a dropped
+        # channel rather than anything timing out.
         self.qdrant_client = QdrantClient(
-            url=QDRANT_URL, api_key=QDRANT_API_KEY, prefer_grpc=True,
+            url=QDRANT_URL, api_key=QDRANT_API_KEY,
             cloud_inference=CLOUD_INFERENCE, timeout=timeout,
         )
 
