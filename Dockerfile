@@ -48,7 +48,9 @@ RUN poetry install --no-interaction --no-ansi --no-root --without dev
 # `module 'charset_normalizer.md' has no attribute 'CharInfo'`. Nothing here is
 # pinned otherwise, so which versions land depends on the day the image builds.
 RUN pip install -U "qdrant-client==1.18.0" \
-    && pip install --force-reinstall --no-cache-dir "charset-normalizer==3.4.1"
+    && pip uninstall -y charset-normalizer \
+    && CHARSET_NORMALIZER_USE_MYPYC=0 pip install --no-cache-dir --no-binary charset-normalizer "charset-normalizer==3.4.1" \
+    && python -c "import charset_normalizer, requests; print('charset-normalizer', charset_normalizer.__version__, 'imports clean')"
 
 # Finally copy the application source code and install root
 COPY qdrant_demo /app/qdrant_demo
