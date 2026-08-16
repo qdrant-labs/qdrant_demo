@@ -1418,6 +1418,14 @@ button {
   width: min(100% - 32px, 760px);
   max-height: min(88vh, 760px);
 
+  /* Column flex so the header keeps its height and the content below it gets
+     the remaining space. As a plain block the content grew past the modal and
+     `overflow: hidden` clipped it, so its own `overflow-y: auto` never had a
+     bounded height to scroll within and the steps below the fold were
+     unreachable. */
+  display: flex;
+  flex-direction: column;
+
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 24px;
@@ -1433,6 +1441,8 @@ button {
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
+
+  flex-shrink: 0;
 
   border-bottom: 1px solid var(--border);
 }
@@ -1461,9 +1471,11 @@ button {
   width: 38px;
   height: 38px;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
+
+  /* Buttons carry a UA padding that offset the icon inside the circle. */
+  padding: 0;
 
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -1471,8 +1483,14 @@ button {
   background: var(--surface-subtle);
   color: var(--text);
 
-  font-size: 22px;
   line-height: 1;
+}
+
+.modal-close svg {
+  width: 16px;
+  height: 16px;
+
+  display: block;
 }
 
 .modal-close:hover {
@@ -1485,6 +1503,10 @@ button {
 
   display: grid;
   gap: 26px;
+
+  /* A flex child floors at its content height, which would push the modal past
+     its max-height instead of scrolling. */
+  min-height: 0;
 
   overflow-y: auto;
 }
@@ -2010,7 +2032,14 @@ button {
 
   .result-meta {
     grid-column: 1 / -1;
-    justify-content: space-between;
+  }
+
+  /* `space-between` spread the score and both buttons evenly across the card,
+     which opened a 35px hole between Find similar and Website while the row's
+     own gap said 12px. The score holds the left edge instead and the two
+     actions stay together at the right. */
+  .result-meta .score {
+    margin-right: auto;
   }
 
   .results-header {
@@ -2061,26 +2090,76 @@ button {
     display: none;
   }
 
+  /* Wrap the row rather than stacking it as a column. As a column the input's
+     `height: 100%` resolved against auto and collapsed it to 21px, and the
+     button sat flush against it with no gap. Wrapping keeps the icon and input
+     on the first line at full height and drops the button onto the second. */
   .search-box {
     height: auto;
     padding: 6px;
-    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .search-icon,
-  .clear-button {
-    display: none;
+  .search-icon {
+    width: 30px;
+    font-size: 16px;
   }
 
   .search-box input {
-    width: 100%;
-    height: 42px;
-    text-align: center;
+    height: 44px;
+    /* Anything under 16px makes iOS Safari zoom the page in on focus. */
+    font-size: 16px;
+    /* Flex children floor at their content width, which forced the wrap early
+       on narrow screens. */
+    min-width: 0;
   }
 
   .search-submit {
-    width: 100%;
+    flex-basis: 100%;
+    height: 46px;
     margin: 0;
+    font-size: 15px;
+  }
+
+  /* The badge is pushed right by `margin-left: auto` on wide screens. Once the
+     row wraps it lands on its own line, still right-aligned and out of line
+     with everything else in the panel. */
+  .scale-badge {
+    margin-left: 0;
+  }
+
+  .segmented {
+    display: flex;
+    width: 100%;
+  }
+
+  .segmented button {
+    flex: 1;
+    padding: 12px 8px;
+  }
+
+  /* Left-aligned to match the rest of the panel. The extra row gap keeps the
+     two wrapped rows from crowding each other now the chips are taller. */
+  .chips {
+    gap: 10px;
+  }
+
+  /* 31px tall was under the 44px minimum tap target, and these are the primary
+     way into the demo on a phone. */
+  .chips button {
+    min-height: 40px;
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+
+  .result-meta a,
+  .similar-button {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 14px;
+    font-size: 13px;
   }
 
   .filter-panel-header {

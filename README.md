@@ -52,8 +52,9 @@ python -m qdrant_demo.init_collection_crunchbase
 | Software stack | |
 |-|-|
 | Qdrant | Vector database and search engine with full-text and semantic capabilities. |
-| `all-MiniLM-L6-v2` | The embedding model that turns startup data into vectors. |
-| FastEmbed | Qdrant's package that handles the vectorization. |
+| `mxbai-embed-large-v1` | The embedding model that turns startup data into vectors. |
+| `Qdrant/bm25` | The sparse model behind keyword search. |
+| Qdrant Cloud inference | Embeds the query server-side, so the app ships no local model. |
 | React (Vite) | The frontend, styled with the Qdrant design system. |
 
 | Component | |
