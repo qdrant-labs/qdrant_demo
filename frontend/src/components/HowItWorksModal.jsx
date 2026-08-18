@@ -7,8 +7,18 @@ function HowItWorksModal({ onClose }) {
             <p>How it works</p>
             <h2>Startup search powered by Qdrant</h2>
           </div>
-          <button className="modal-close" onClick={onClose}>
-            ×
+          {/* An SVG rather than a × glyph: the character's ink sits on the
+              font's math axis, above the middle of its line box, so centering
+              the text still left it visibly high in the circle. */}
+          <button className="modal-close" onClick={onClose} aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M7 7l10 10M17 7L7 17"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
           </button>
         </div>
 
@@ -25,7 +35,7 @@ function HowItWorksModal({ onClose }) {
             <div className="pipeline-node">
               <span>2</span>
               <strong>Embeddings</strong>
-              <p>Each profile is turned into a vector with all-MiniLM-L6-v2.</p>
+              <p>Each profile is turned into a vector with mxbai-embed-large-v1.</p>
             </div>
 
             <div className="pipeline-arrow">→</div>
