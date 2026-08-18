@@ -13,7 +13,10 @@ pandas = "^2.2.3"
 loguru = ">=0.7.2"
 requests = "^2.25.1"
 tqdm = "^4.66.1"
-qdrant-client = { extras = ["fastembed"], version = "1.14.2" }
+# No fastembed extra. The query is embedded by Qdrant Cloud inference, so the
+# app never loads a local model, but the extra still installed the package and
+# importing it pulled in a charset_normalizer build that crashed on startup.
+qdrant-client = "1.14.2"
 
 [tool.poetry.dev-dependencies]
 
