@@ -90,6 +90,42 @@ the query.
 Keyword search ranks on the BM25 sparse vector rather than filtering the payload
 text, so results come back ordered instead of as an unordered subset.
 
+## Measured against the backend it replaces
+
+40 queries, 3 modes, 3 repetitions each, both backends called from the same
+machine and interleaved so neither gets the warmer socket. `test/compare.mjs`
+re-runs it.
+
+Latency, milliseconds:
+
+| mode | p50 | p95 | mean | old p50 | old p95 | old mean |
+|-|-|-|-|-|-|-|
+| semantic | 124 | 198 | 133 | 275 | 370 | 294 |
+| keyword | 29 | 79 | 42 | 189 | 273 | 203 |
+| hybrid | 152 | 277 | 168 | 283 | 391 | 299 |
+
+The old path was laptop to Railway to Qdrant. The new one is laptop to Qdrant.
+The difference is the hop that was removed, and nothing else: both call the same
+cluster with the same query. Keyword gains most because BM25 is computed in the
+engine, so almost all of its old 189ms was the container in the middle.
+
+Results, over the same 40 queries:
+
+| mode | same 20 documents | same order | largest score difference |
+|-|-|-|-|
+| semantic | 40/40 | 38/40 | 0.00023 |
+| keyword | 40/40 | 40/40 | 0 |
+| hybrid | 40/40 | 20/40 | 0.064 |
+
+Keyword is exact. Semantic differs only in the fifth decimal, which is float32
+rounding between the gRPC client the old backend used and this one's JSON.
+
+Hybrid ordering looks unstable until you measure the control: **asked the same
+question twice, the old backend returned a different order 21 times out of 40,
+and so did this one.** Old matched new 20/40, which is as close as either
+backend gets to matching itself. The variance is approximate search over three
+million points, not the port.
+
 ## Deploy
 
 Load the collection first, then import this repo on Vercel with
@@ -111,4 +147,5 @@ API; empty means same-origin, which is where the functions now are.
 node --test test/highlight.test.mjs   # keyword highlighting matches the Python it replaces
 node test/parity.mjs                  # rankings and latency against a reference backend
 node --env-file=.env test/serve.mjs   # the built frontend and both functions on one port
+node --env-file=.env test/compare.mjs # the latency and ranking table above
 ```
