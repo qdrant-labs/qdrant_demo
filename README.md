@@ -110,4 +110,5 @@ API; empty means same-origin, which is where the functions now are.
 ```bash
 node --test test/highlight.test.mjs   # keyword highlighting matches the Python it replaces
 node test/parity.mjs                  # rankings and latency against a reference backend
+node --env-file=.env test/serve.mjs   # the built frontend and both functions on one port
 ```
