@@ -1,5 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "functions": {
+    "api/*.ts": {
+      "maxDuration": 20
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!api/)(?!.*\\.).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "regions": [
+    "pdx1"
+  ]
 }
