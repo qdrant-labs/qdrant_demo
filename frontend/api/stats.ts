@@ -1,5 +1,5 @@
 /**
- * GET /api/stats — live collection size for the "N startups indexed" badge.
+ * GET /api/stats, the live collection size for the "N startups indexed" badge.
  */
 
 const BASE = (process.env.QDRANT_URL ?? "").replace(/\/+$/, "");

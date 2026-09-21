@@ -10,7 +10,7 @@ A small app that searches a list of startups by meaning.
 
 ![Startup Search Demo](demo.gif)
 
-## Two services, not three
+## Two Services, Not Three
 
 The demo runs on **Vercel** and **Qdrant Cloud**, and nothing else.
 
@@ -23,7 +23,7 @@ dependencies.
 
 The indexing scripts are still Python, because they run once, by hand.
 
-## Run locally
+## Run Locally
 
 **Prerequisites:** Node 20+, a Qdrant Cloud cluster with Cloud Inference
 enabled, and Python 3.11 only if you want to load the data yourself.
@@ -49,7 +49,7 @@ wget https://storage.googleapis.com/generall-shared-data/startups_demo.json -P d
 python -m qdrant_demo.init_collection_startups
 ```
 
-### Larger dataset (Crunchbase)
+### Larger Dataset (Crunchbase)
 
 To index a bigger set of companies, get a [Crunchbase](https://www.crunchbase.com/) API key, then:
 
@@ -60,7 +60,7 @@ mv odm/organizations.csv ./data
 python -m qdrant_demo.init_collection_crunchbase
 ```
 
-## What's inside
+## What's Inside
 
 | Software stack | |
 |-|-|
@@ -73,24 +73,26 @@ python -m qdrant_demo.init_collection_crunchbase
 | Component | |
 |-|-|
 | `frontend/api/search.ts` | `GET /api/search?q=&mode=semantic\|keyword\|hybrid`. The whole backend. |
-| `frontend/api/stats.ts` | `GET /api/stats` — collection size for the scale badge. |
+| `frontend/api/stats.ts` | `GET /api/stats`, the collection size for the scale badge. |
 | `init_collection_startups.py` | Loads startup data into a Qdrant collection. |
 | `init_collection_crunchbase.py` | Same, for the larger Crunchbase dataset. |
 | `config.py` | Env vars shared by the indexing scripts. |
 
-## How a search works
+## How a Search Works
 
 One request to Qdrant per search, whatever the mode.
 
 Hybrid sends two `prefetch` legs, dense and sparse, and fuses them server-side
-with reciprocal rank fusion. That needs a **Qdrant server at 1.10 or newer**, and
+with reciprocal rank fusion, which is
+[Cormack et al. 2009](https://dl.acm.org/doi/10.1145/1571941.1572114) and is
+implemented by Qdrant, not by this repository. That needs a **Qdrant server at 1.10 or newer**, and
 Cloud Inference switched on: a 1.19 cluster with inference off still cannot embed
 the query.
 
 Keyword search ranks on the BM25 sparse vector rather than filtering the payload
 text, so results come back ordered instead of as an unordered subset.
 
-## Measured against the backend it replaces
+## Measured Against the Backend It Replaces
 
 40 queries, 3 modes, 3 repetitions each, both backends called from the same
 machine and interleaved so neither gets the warmer socket. `test/compare.mjs`
@@ -125,6 +127,33 @@ question twice, the old backend returned a different order 21 times out of 40,
 and so did this one.** Old matched new 20/40, which is as close as either
 backend gets to matching itself. The variance is approximate search over three
 million points, not the port.
+
+## Where This Stops Working
+
+Three boundaries, so nobody finds them in production.
+
+**A cluster without Cloud Inference.** The functions send query text, not
+vectors, and nothing in this repository can embed. A cluster with inference
+switched off returns an error on every search rather than degrading.
+
+**Anything the catalog does not host.** The models available in-cluster are a
+fixed list. A demo needing a multilingual encoder cannot be built this way
+today: it would need an external provider key, which puts the third vendor back.
+
+**A function that has to hold state.** These two are stateless, which is why
+they suit serverless. Work that needs a warm process, a local model or a cache
+shared across requests does not move here unchanged.
+
+### What Did Not Work
+
+The functions started at the repository root, which is the obvious place for
+them. That forces Vercel's Root Directory to change from `frontend` to empty,
+and the same change is what stranded the code search demo: the setting only the
+project owner can edit. Moving them under `frontend/api` costs nothing and
+needs no Vercel setting touched at all.
+
+Hybrid ordering looked like a regression at 20 out of 40 until the control was
+run against the old backend twice. It was not.
 
 ## Deploy
 
