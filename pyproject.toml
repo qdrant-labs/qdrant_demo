@@ -1,22 +1,19 @@
 [tool.poetry]
 name = "qdrant_demo"
 version = "0.1.0"
-description = "Qdrant vector similarity engine demo"
+description = "Indexing scripts for the Qdrant startup search demo"
 authors = ["Andrey Vasnetsov <andrey@vasnetsov.com>"]
 
 [tool.poetry.dependencies]
 python = "~3.11"
-fastapi = "^0.103.1"
-uvicorn = "^0.18.3"
-psutil = "^5.7.3"
 pandas = "^2.2.3"
-loguru = ">=0.7.2"
-requests = "^2.25.1"
 tqdm = "^4.66.1"
-# No fastembed extra. The query is embedded by Qdrant Cloud inference, so the
-# app never loads a local model, but the extra still installed the package and
-# importing it pulled in a charset_normalizer build that crashed on startup.
-qdrant-client = "1.14.2"
+# Only the indexing scripts are left, so this is the client and what they use to
+# read the source data. No fastembed extra: queries are embedded by Qdrant Cloud
+# Inference, and the extra pulled in a charset_normalizer build that crashed.
+# 1.14 is the floor for cloud_inference; the collection also needs a Qdrant
+# server at 1.10 or newer for the fusion step in the hybrid query.
+qdrant-client = ">=1.14.2"
 
 [tool.poetry.dev-dependencies]
 

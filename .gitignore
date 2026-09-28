@@ -1,8 +1,16 @@
 venv
+.venv
 data/*
+!data/.keep
 static
 .DS_Store
 __pycache__
+*.pyc
 .vscode
 .python-version
 .idea/
+node_modules/
+.env
+.env.local
+.vercel
+frontend/dist/

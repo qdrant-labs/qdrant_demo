@@ -4,39 +4,52 @@ A small app that searches a list of startups by meaning.
 
 [![Try it live](https://img.shields.io/badge/Try%20it%20live%20here!-purple?&style=flat-square&logo=react&logoColor=white)](https://demo.qdrant.tech/)
 
-- **Neural search** reads each startup's description and finds similar ones.
-- **Keyword search** matches your exact term in the description.
+- **Semantic search** reads each startup's description and finds similar ones.
+- **Keyword search** matches your terms with BM25.
+- **Hybrid** runs both and fuses the two rankings.
 
 ![Startup Search Demo](demo.gif)
 
-## Run locally
+## Two Services, Not Three
 
-Local runs use a throwaway Qdrant in Docker — no cloud account needed.
+The demo runs on **Vercel** and **Qdrant Cloud**, and nothing else.
 
-**Prerequisites:** Python 3.11, Docker
+Queries are embedded inside the cluster by **Qdrant Cloud Inference**, so there
+is no model to load and no Python process to host. What used to be a FastAPI
+container on Railway is now two serverless functions that post JSON to Qdrant:
+[`frontend/api/search.ts`](frontend/api/search.ts) and
+[`frontend/api/stats.ts`](frontend/api/stats.ts). Between them they have no
+dependencies.
+
+The indexing scripts are still Python, because they run once, by hand.
+
+## Run Locally
+
+**Prerequisites:** Node 20+, a Qdrant Cloud cluster with Cloud Inference
+enabled, and Python 3.11 only if you want to load the data yourself.
+
+Querying needs Cloud Inference, so a local Qdrant in Docker cannot serve this
+demo: nothing would embed the query.
 
 ```bash
-# 1. Environment
-python -m venv .venv
-source .venv/bin/activate
+# 1. Point at your cluster
+cp .env.example .env    # then fill in QDRANT_URL and QDRANT_API_KEY
 
-# 2. Dependencies
-pip install poetry
-poetry install
+# 2. Run the frontend and the functions together
+npm i -g vercel
+cd frontend && vercel dev
+```
 
-# 3. Dataset
+To load the data first:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install poetry && poetry install
 wget https://storage.googleapis.com/generall-shared-data/startups_demo.json -P data/
-
-# 4. Start Qdrant + the service
-docker-compose -f docker-compose-local.yaml up
-
-# 5. Load the data
 python -m qdrant_demo.init_collection_startups
 ```
 
-Then open [http://localhost:8000/](http://localhost:8000/).
-
-### Larger dataset (Crunchbase)
+### Larger Dataset (Crunchbase)
 
 To index a bigger set of companies, get a [Crunchbase](https://www.crunchbase.com/) API key, then:
 
@@ -47,48 +60,121 @@ mv odm/organizations.csv ./data
 python -m qdrant_demo.init_collection_crunchbase
 ```
 
-## What's inside
+## What's Inside
 
 | Software stack | |
 |-|-|
-| Qdrant | Vector database and search engine with full-text and semantic capabilities. |
-| `mxbai-embed-large-v1` | The embedding model that turns startup data into vectors. |
-| `Qdrant/bm25` | The sparse model behind keyword search. |
-| Qdrant Cloud inference | Embeds the query server-side, so the app ships no local model. |
-| React (Vite) | The frontend, styled with the Qdrant design system. |
+| Qdrant | Vector search engine holding the collection. |
+| Qdrant Cloud Inference | Embeds the query inside the cluster, so the app ships no model. |
+| `mxbai-embed-large-v1` | The dense model. 1024 dimensions. |
+| `Qdrant/bm25` | The sparse model behind keyword search. Computed in-engine, so it bills no inference tokens. |
+| React (Vite) on Vercel | The frontend, styled with the Qdrant design system. |
 
 | Component | |
 |-|-|
-| `init_collection_startups.py` | Loads startup data into a Qdrant collection (with a text index for keyword search). |
+| `frontend/api/search.ts` | `GET /api/search?q=&mode=semantic\|keyword\|hybrid`. The whole backend. |
+| `frontend/api/stats.ts` | `GET /api/stats`, the collection size for the scale badge. |
+| `init_collection_startups.py` | Loads startup data into a Qdrant collection. |
 | `init_collection_crunchbase.py` | Same, for the larger Crunchbase dataset. |
-| `neural_searcher.py` | Semantic search: embeds the query and returns the nearest startups. |
-| `text_searcher.py` | Keyword search: full-text match on the `description` field. |
-| `service.py` | FastAPI app exposing `GET /api/search?q&neural`, also serving the built frontend. |
-| `config.py` | Reads env vars (Qdrant URL/key, collection, embeddings model). Text field defaults to `description`, overridable via `TEXT_FIELD_NAME`. |
+| `config.py` | Env vars shared by the indexing scripts. |
 
-## Deploy (Qdrant Cloud)
+## How a Search Works
 
-A deployed instance searches a **Qdrant Cloud** collection instead of a local one.
-Load the collection first (the `init_collection_*` scripts above, pointed at your
-cluster), then set these environment variables wherever you deploy:
+One request to Qdrant per search, whatever the mode.
+
+Hybrid sends two `prefetch` legs, dense and sparse, and fuses them server-side
+with reciprocal rank fusion, which is
+[Cormack et al. 2009](https://dl.acm.org/doi/10.1145/1571941.1572114) and is
+implemented by Qdrant, not by this repository. That needs a **Qdrant server at 1.10 or newer**, and
+Cloud Inference switched on: a 1.19 cluster with inference off still cannot embed
+the query.
+
+Keyword search ranks on the BM25 sparse vector rather than filtering the payload
+text, so results come back ordered instead of as an unordered subset.
+
+## Measured Against the Backend It Replaces
+
+40 queries, 3 modes, 3 repetitions each, both backends called from the same
+machine and interleaved so neither gets the warmer socket. `test/compare.mjs`
+re-runs it.
+
+Latency, milliseconds:
+
+| mode | p50 | p95 | mean | old p50 | old p95 | old mean |
+|-|-|-|-|-|-|-|
+| semantic | 124 | 198 | 133 | 275 | 370 | 294 |
+| keyword | 29 | 79 | 42 | 189 | 273 | 203 |
+| hybrid | 152 | 277 | 168 | 283 | 391 | 299 |
+
+The old path was laptop to Railway to Qdrant. The new one is laptop to Qdrant.
+The difference is the hop that was removed, and nothing else: both call the same
+cluster with the same query. Keyword gains most because BM25 is computed in the
+engine, so almost all of its old 189ms was the container in the middle.
+
+Results, over the same 40 queries:
+
+| mode | same 20 documents | same order | largest score difference |
+|-|-|-|-|
+| semantic | 40/40 | 38/40 | 0.00023 |
+| keyword | 40/40 | 40/40 | 0 |
+| hybrid | 40/40 | 20/40 | 0.064 |
+
+Keyword is exact. Semantic differs only in the fifth decimal, which is float32
+rounding between the gRPC client the old backend used and this one's JSON.
+
+Hybrid ordering looks unstable until you measure the control: **asked the same
+question twice, the old backend returned a different order 21 times out of 40,
+and so did this one.** Old matched new 20/40, which is as close as either
+backend gets to matching itself. The variance is approximate search over three
+million points, not the port.
+
+## Where This Stops Working
+
+Three boundaries, so nobody finds them in production.
+
+**A cluster without Cloud Inference.** The functions send query text, not
+vectors, and nothing in this repository can embed. A cluster with inference
+switched off returns an error on every search rather than degrading.
+
+**Anything the catalog does not host.** The models available in-cluster are a
+fixed list. A demo needing a multilingual encoder cannot be built this way
+today: it would need an external provider key, which puts the third vendor back.
+
+**A function that has to hold state.** These two are stateless, which is why
+they suit serverless. Work that needs a warm process, a local model or a cache
+shared across requests does not move here unchanged.
+
+### What Did Not Work
+
+The functions started at the repository root, which is the obvious place for
+them. That forces Vercel's Root Directory to change from `frontend` to empty,
+and the same change is what stranded the code search demo: the setting only the
+project owner can edit. Moving them under `frontend/api` costs nothing and
+needs no Vercel setting touched at all.
+
+Hybrid ordering looked like a regression at 20 out of 40 until the control was
+run against the old backend twice. It was not.
+
+## Deploy
+
+Load the collection first, then import this repo on Vercel with
+**Root Directory = `frontend`**. The functions live in `frontend/api`, so they
+deploy from the same root the Vite build already uses.
 
 | Variable | Value |
 |-|-|
 | `QDRANT_URL` | your Qdrant Cloud endpoint (`https://…:6333`) |
 | `QDRANT_API_KEY` | your Qdrant Cloud API key |
-| `COLLECTION_NAME` | the collection to search (e.g. `startups`) |
+| `COLLECTION_NAME` | the collection to search. Defaults to `startups_hybrid_v2`. |
 
-### Option A — one container (Railway or any Docker host)
+`VITE_API_BASE` must be **unset**. It pointed the frontend at the old Railway
+API; empty means same-origin, which is where the functions now are.
 
-The `Dockerfile` builds the React frontend and runs FastAPI serving it, so the
-whole demo is a single service. On Railway: **New → Deploy from GitHub repo**,
-pick this repo, add the variables above. The container binds `$PORT` automatically.
+## Checks
 
-### Option B — frontend on Vercel, API on the container
-
-To embed the demo behind a static link, host the UI on Vercel and keep the API on
-the container from Option A:
-
-1. Import this repo on Vercel with **Root Directory = `frontend`** (Vite is auto-detected).
-2. Add one env var: `VITE_API_BASE` = the container's URL. The frontend then calls
-   that API cross-origin; it defaults to same-origin, so Option A is unaffected.
+```bash
+node --test test/highlight.test.mjs   # keyword highlighting matches the Python it replaces
+node test/parity.mjs                  # rankings and latency against a reference backend
+node --env-file=.env test/serve.mjs   # the built frontend and both functions on one port
+node --env-file=.env test/compare.mjs # the latency and ranking table above
+```
